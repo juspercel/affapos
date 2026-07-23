@@ -1,0 +1,110 @@
+body {
+  background:
+    linear-gradient(145deg, rgba(255, 42, 181, 0.22), transparent 30%),
+    linear-gradient(220deg, rgba(132, 68, 255, 0.2), transparent 34%),
+    linear-gradient(180deg, #050306 0%, #09050d 52%, #050306 100%);
+}
+
+:root {
+  --gold: #ffcf55;
+  --green: #f72bbb;
+  --ink: #050306;
+  --paper: #fff7fb;
+  --muted: #c9b9d8;
+  --line: rgba(255, 247, 251, 0.15);
+}
+
+.site-shell {
+  position: relative;
+}
+
+.profile-mark {
+  width: 88px;
+  height: 88px;
+  border-color: rgba(255, 43, 187, 0.66);
+  background-image:
+    linear-gradient(rgba(5, 3, 6, 0), rgba(5, 3, 6, 0)),
+    url("data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAYEBQUFBAYFBQUHBgYHCQ8KCQgICRMNDgsPFhMXFxYTFRUYGyMeGBohGhUVHikfISQlJygnGB0rLismLiMmJyb/2wBDAQYHBwkICRIKChImGRUZJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJib/wAARCADcANwDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD5VooooAKKKKACiiigAooq7a6bNNELiZ0tbX/ntNwD7KOrH6U0m9i4QlN2iilVi1sbu6BMFu7qOr4wo+pPFW/tOn2nFna/aZB/y3uhx+CdPzzVa4u7u8I+0TvIB0Un5R9B0FOyNeSnH4nd+X+f+SZMLC3j/wCPrUYUP9yEGVv04/Wgto8f3Yry4P8AtMsYP4AH+dVhC2M4qJhg1W3Qbly/DFL8fz0/AvfbbFf9XpEP/bSV2/qKX+0k7aXYj/gDH/2aqCgswVQSScADqa7e++H15p2gW93f3Ag1O6HmR2JHKx9i3oT6VvRo1a7apq9jSk69W/Ilp5Jfocv/AGjCT8+k2JHsHH8moN1pr8PpOz3huGH/AKFmqU0MkMjRyoUdeCpFMrJ8y0Zk69RaO33L/I0PL0eXhZ7q2P8A00QSL+Ywf0pP7Lkk/wCPO4gu/aN8N/3y2DVOKKSZ9kUbSNjO1Rk0ypa6tB7SLXvQ+7T/ADX4DpopYZDHNG8bjqrrg0yrsOpXSKI5WW5iH/LOcbx+HcfhT/L0+7P7p/sMp6JId0Z+jdR+P51NuwvZxl8D+T0/4H5ehn0VNdWs9rIEnjKEjKnqGHqD0IqGpMnFxdmtQooooJCiiigAooooAKKKKACiiigAp9vDLcTLDBG0kjnCqoyTUllaTXk3lxYAA3O7HCovck9hVy4vIbaFrPTCwRhiW4Iw83sP7q+3fvVJdWbQpq3PPRfn6f59PwH4sdL4YR396O2cwxH/ANnP6fWmWltqviHUlhhWS6uH49lH8lFZxVh1BFdH4TtdSnMqW9xJa2cuFuHThnX+6p9a1hFzlypG9K9aap2tHsv6/F7GdrOlDTtSawiuY72VAA7QZKhu4HritSLwf4hj0P8At+bS5Y9NDbfPfAyfYdTXp0+s+ELLTH0az0FLKxCg/bFbNyHH8bN7" );
+  background-position: center;
+  background-size: cover;
+  box-shadow: 0 0 0 4px rgba(255, 43, 187, 0.1), 0 18px 46px rgba(247, 43, 187, 0.34);
+}
+
+.profile-mark img {
+  z-index: 2;
+}
+
+.profile-fallback {
+  opacity: 0;
+}
+
+h1 {
+  color: #fff7fb;
+  text-shadow: 0 0 22px rgba(255, 43, 187, 0.35);
+}
+
+.age-strip {
+  border-color: rgba(255, 207, 85, 0.35);
+  background: rgba(255, 207, 85, 0.1);
+  color: #fff1c8;
+}
+
+.age-strip strong {
+  background: #ffcf55;
+  color: #14070d;
+}
+
+.bet-link {
+  border-color: rgba(255, 247, 251, 0.14);
+  background: rgba(18, 10, 24, 0.72);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.bet-link:hover,
+.bet-link:focus-visible {
+  border-color: rgba(255, 43, 187, 0.62);
+  background: rgba(55, 21, 67, 0.86);
+  box-shadow: 0 14px 38px rgba(247, 43, 187, 0.18);
+}
+
+.link-icon {
+  border-color: rgba(255, 43, 187, 0.4);
+  background: #130918;
+  color: #ff2bbb;
+  box-shadow: inset 0 0 16px rgba(247, 43, 187, 0.18);
+}
+
+.link-label,
+.group-icon,
+.nested-link-editor > strong {
+  color: #ff47c7;
+}
+
+.link-topline em {
+  border-color: rgba(255, 207, 85, 0.46);
+  background: rgba(255, 207, 85, 0.08);
+  color: #ffcf55;
+}
+
+.editor-panel,
+.admin-login,
+.info-grid article {
+  border-color: rgba(255, 43, 187, 0.23);
+  background: rgba(9, 5, 13, 0.78);
+}
+
+.icon-action.primary,
+.profile-editor input[type="file"]::file-selector-button {
+  border-color: rgba(255, 43, 187, 0.65);
+  background: #ff2bbb;
+  color: #120812;
+}
+
+.profile-editor input:focus,
+.link-editor input:focus,
+.group-editor input:focus,
+.nested-link-editor input:focus,
+.admin-login-row input:focus {
+  border-color: rgba(255, 43, 187, 0.72);
+  box-shadow: 0 0 0 3px rgba(255, 43, 187, 0.14);
+}
