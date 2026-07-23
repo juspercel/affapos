@@ -44,26 +44,36 @@ function hasRedisConfig() {
   return Boolean(url && token);
 }
 
-async function redisRequest(path, init) {
+async function redisCommand(command) {
   const { url, token } = getRedisConfig();
 
   if (!url || !token) {
     throw new Error("missing_redis_config");
   }
 
-  const response = await fetch(`${url.replace(/\/$/, "")}${path}`, {
-    ...init,
+  const response = await fetch(url.replace(/\/$/, ""), {
+    method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
-      ...(init?.headers || {}),
+      "Content-Type": "application/json",
     },
+    body: JSON.stringify(command),
   });
 
-  if (!response.ok) {
-    throw new Error(`redis_${response.status}`);
+  const text = await response.text();
+  let data = null;
+
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = { error: text };
   }
 
-  return response.json();
+  if (!response.ok || data?.error) {
+    throw new Error(data?.error || `redis_${response.status}`);
+  }
+
+  return data;
 }
 
 export default async function handler(request, response) {
@@ -73,7 +83,7 @@ export default async function handler(request, response) {
         return response.status(200).json({ ok: true, data: null, storage: "local" });
       }
 
-      const data = await redisRequest(`/get/${encodeURIComponent(siteKey)}`);
+      const data = await redisCommand(["GET", siteKey]);
       const result = typeof data.result === "string" ? JSON.parse(data.result) : null;
       return response.status(200).json({ ok: true, data: result, storage: "redis" });
     }
@@ -88,13 +98,9 @@ export default async function handler(request, response) {
       }
 
       const payload = request.body || {};
-      await redisRequest(`/set/${encodeURIComponent(siteKey)}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(JSON.stringify(payload)),
-      });
+      await redisCommand(["SET", siteKey, JSON.stringify(payload)]);
 
-      return response.status(200).json({ ok: true });
+      return response.status(200).json({ ok: true, storage: "redis" });
     }
 
     response.setHeader("Allow", "GET, POST");
