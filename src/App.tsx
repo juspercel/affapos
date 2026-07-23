@@ -30,9 +30,15 @@ type PageItem =
       links: BettingLink[];
     };
 
+type SiteData = {
+  profile: typeof defaultProfile;
+  items: PageItem[];
+};
+
 const storageKey = "apostas-legalizadas-links";
 const profileStorageKey = "apostas-legalizadas-profile";
 const adminSessionKey = "apostas-legalizadas-admin-session";
+const adminTokenKey = "apostas-legalizadas-admin-token";
 
 const defaultProfile = {
   name: "Apostas Legalizadas BR",
@@ -150,6 +156,18 @@ function readStoredItems() {
   }
 }
 
+function readLocalSiteData(): SiteData {
+  return {
+    profile: readStoredProfile(),
+    items: readStoredItems(),
+  };
+}
+
+function saveLocalSiteData(profile: typeof defaultProfile, items: PageItem[]) {
+  localStorage.setItem(profileStorageKey, JSON.stringify(profile));
+  localStorage.setItem(storageKey, JSON.stringify(items));
+}
+
 function getSiteIconUrl(url: string) {
   try {
     const parsedUrl = new URL(url);
@@ -217,21 +235,48 @@ export default function App() {
   const [openGroups, setOpenGroups] = useState<string[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem(adminSessionKey) === "true");
+  const [adminToken, setAdminToken] = useState(() => localStorage.getItem(adminTokenKey) || "");
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [adminError, setAdminError] = useState("");
   const [fileError, setFileError] = useState("");
+  const [isLoadingSite, setIsLoadingSite] = useState(true);
   const [savedMessage, setSavedMessage] = useState("");
   const isAdminRoute = new URLSearchParams(window.location.search).get("admin") === "1";
   const profileImageUrl = getProfileImageUrl(profile.photoUrl);
 
   useEffect(() => {
-    localStorage.setItem(profileStorageKey, JSON.stringify(profile));
-  }, [profile]);
+    let isMounted = true;
 
-  useEffect(() => {
-    localStorage.setItem(storageKey, JSON.stringify(items));
-  }, [items]);
+    async function loadSiteData() {
+      try {
+        const response = await fetch("/api/site");
+        const result = (await response.json()) as { data?: Partial<SiteData> | null };
+
+        if (!isMounted) return;
+
+        if (response.ok && result.data) {
+          const nextProfile = { ...defaultProfile, ...(result.data.profile || {}) };
+          const nextItems = normalizeStoredItems(result.data.items);
+          setProfile(nextProfile);
+          setItems(nextItems);
+          saveLocalSiteData(nextProfile, nextItems);
+        }
+      } catch {
+        const localData = readLocalSiteData();
+        setProfile(localData.profile);
+        setItems(localData.items);
+      } finally {
+        if (isMounted) setIsLoadingSite(false);
+      }
+    }
+
+    void loadSiteData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const updateLink = (id: string, field: keyof BettingLink, value: string) => {
     setItems((current) =>
@@ -298,12 +343,28 @@ export default function App() {
     setOpenGroups((current) => (current.includes(id) ? current.filter((groupId) => groupId !== id) : [...current, id]));
   };
 
-  const saveLinks = () => {
-    localStorage.setItem(profileStorageKey, JSON.stringify(profile));
-    localStorage.setItem(storageKey, JSON.stringify(items));
-    setSavedMessage("Pagina salva neste navegador.");
-    setIsEditing(false);
-    window.setTimeout(() => setSavedMessage(""), 2200);
+  const saveLinks = async () => {
+    saveLocalSiteData(profile, items);
+
+    try {
+      const response = await fetch("/api/site", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({ profile, items, updatedAt: new Date().toISOString() }),
+      });
+
+      if (!response.ok) throw new Error("save_failed");
+
+      setSavedMessage("Pagina salva online.");
+      setIsEditing(false);
+      window.setTimeout(() => setSavedMessage(""), 2200);
+    } catch {
+      setSavedMessage("Nao consegui salvar online. Verifique o Upstash na Vercel.");
+      window.setTimeout(() => setSavedMessage(""), 3500);
+    }
   };
 
   const enterAdmin = async () => {
@@ -315,12 +376,16 @@ export default function App() {
         body: JSON.stringify({ email: adminEmail, password: adminPassword }),
       });
 
-      if (!response.ok) {
+      const result = (await response.json()) as { token?: string };
+
+      if (!response.ok || !result.token) {
         setAdminError("Email ou senha incorretos.");
         return;
       }
 
       localStorage.setItem(adminSessionKey, "true");
+      localStorage.setItem(adminTokenKey, result.token);
+      setAdminToken(result.token);
       setIsAdmin(true);
       setIsEditing(true);
       setAdminPassword("");
@@ -331,6 +396,8 @@ export default function App() {
 
   const exitAdmin = () => {
     localStorage.removeItem(adminSessionKey);
+    localStorage.removeItem(adminTokenKey);
+    setAdminToken("");
     setIsAdmin(false);
     setIsEditing(false);
   };
@@ -423,7 +490,7 @@ export default function App() {
               <p>Adicione quantas casas quiser e salve nome, bonus, foto e links.</p>
             </div>
             <div className="editor-head-actions">
-              <button className="icon-action primary" type="button" onClick={saveLinks}>
+              <button className="icon-action primary" type="button" onClick={() => void saveLinks()}>
                 <Save size={17} />
                 Salvar
               </button>
@@ -578,6 +645,7 @@ export default function App() {
       ) : null}
 
       {savedMessage ? <p className="save-message">{savedMessage}</p> : null}
+      {isLoadingSite ? <p className="save-message">Carregando links...</p> : null}
 
       <section className="links-panel" aria-label="Links de casas de apostas">
         {items.map((item) => {
