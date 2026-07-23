@@ -21,44 +21,11 @@ Configure o projeto na Vercel com:
 Em Settings > Environment Variables, adicione:
 
 ```env
-VITE_ADMIN_EMAILS=seu-email@gmail.com
+ADMIN_EMAIL=seu-email@gmail.com
+ADMIN_PASSWORD=sua-senha-forte
 ```
 
-Para mais de um admin:
-
-```env
-VITE_ADMIN_EMAILS=email1@gmail.com,email2@gmail.com
-```
-
-Depois de salvar a variavel, faca redeploy.
-
-## Firebase
-
-O login usa Firebase Auth com Google e o conteudo e salvo no Firestore.
-
-No Firebase Console:
-
-1. Authentication > Sign-in method: habilite Google.
-2. Authentication > Settings > Authorized domains: adicione o dominio da Vercel, por exemplo `seu-site.vercel.app`.
-3. Firestore Database: crie o banco, se ainda nao existir.
-4. Firestore Rules: use regras parecidas com estas, trocando o email:
-
-```js
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /sites/affapos {
-      allow read: if true;
-      allow write: if request.auth != null
-        && request.auth.token.email in ['seu-email@gmail.com'];
-    }
-
-    match /{document=**} {
-      allow read, write: if false;
-    }
-  }
-}
-```
+Depois de salvar as variaveis, faca redeploy.
 
 ## Admin
 
@@ -69,3 +36,7 @@ https://seu-site.vercel.app/?admin=1
 ```
 
 Na pagina publica normal, o botao Admin nao aparece.
+
+## Observacao importante
+
+Este modo remove Firebase e usa login por API da Vercel. As edicoes ficam salvas no navegador onde o painel foi usado. Para salvar online e mostrar as mesmas edicoes para todos os visitantes/dispositivos, e necessario adicionar um armazenamento gratuito, como Vercel KV/Blob, Supabase ou Firestore.
