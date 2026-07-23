@@ -9,6 +9,11 @@ function getRedisConfig() {
   return { url, token };
 }
 
+function hasRedisConfig() {
+  const { url, token } = getRedisConfig();
+  return Boolean(url && token);
+}
+
 async function redisRequest(path: string, init?: RequestInit) {
   const { url, token } = getRedisConfig();
 
@@ -34,14 +39,22 @@ async function redisRequest(path: string, init?: RequestInit) {
 export default async function handler(request: VercelRequest, response: VercelResponse) {
   try {
     if (request.method === "GET") {
+      if (!hasRedisConfig()) {
+        return response.status(200).json({ ok: true, data: null, storage: "local" });
+      }
+
       const data = await redisRequest(`/get/${encodeURIComponent(siteKey)}`);
       const result = typeof data.result === "string" ? JSON.parse(data.result) : null;
-      return response.status(200).json({ ok: true, data: result });
+      return response.status(200).json({ ok: true, data: result, storage: "redis" });
     }
 
     if (request.method === "POST") {
       if (!isValidAdminToken(request.headers.authorization)) {
         return response.status(401).json({ ok: false });
+      }
+
+      if (!hasRedisConfig()) {
+        return response.status(500).json({ ok: false, error: "missing_redis_config" });
       }
 
       const payload = request.body || {};
