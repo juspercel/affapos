@@ -25,7 +25,30 @@ ADMIN_EMAIL=seu-email@gmail.com
 ADMIN_PASSWORD=sua-senha-forte
 ```
 
-Depois de salvar as variaveis, faca redeploy.
+## Upstash Redis gratis
+
+Para as edicoes aparecerem para todos os visitantes, conecte um banco gratis:
+
+1. Abra o projeto na Vercel.
+2. Va em `Storage` ou `Marketplace`.
+3. Procure por `Upstash`.
+4. Crie/conecte um banco `Upstash Redis` no plano free.
+5. Conecte esse banco ao projeto `affapos`.
+6. Confira em `Settings > Environment Variables` se a Vercel adicionou:
+
+```env
+KV_REST_API_URL=...
+KV_REST_API_TOKEN=...
+```
+
+Tambem funciona se aparecer com nomes da Upstash:
+
+```env
+UPSTASH_REDIS_REST_URL=...
+UPSTASH_REDIS_REST_TOKEN=...
+```
+
+Depois de conectar, faca `Redeploy`.
 
 ## Admin
 
@@ -37,6 +60,4 @@ https://seu-site.vercel.app/?admin=1
 
 Na pagina publica normal, o botao Admin nao aparece.
 
-## Observacao importante
-
-Este modo remove Firebase e usa login por API da Vercel. As edicoes ficam salvas no navegador onde o painel foi usado. Para salvar online e mostrar as mesmas edicoes para todos os visitantes/dispositivos, e necessario adicionar um armazenamento gratuito, como Vercel KV/Blob, Supabase ou Firestore.
+Quando o Upstash estiver conectado, clicar em `Salvar` grava online e todo visitante passa a ver a mesma lista.
