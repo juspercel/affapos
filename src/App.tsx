@@ -1,6 +1,4 @@
 import { useEffect, useState } from "react";
-import { onAuthStateChanged, signInWithPopup, signOut, type User } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
 import {
   ChevronDown,
   Edit3,
@@ -14,8 +12,6 @@ import {
   Trophy,
   X,
 } from "lucide-react";
-import { auth, googleProvider } from "./lib/firebase";
-import { db } from "./lib/firebase";
 
 type BettingLink = {
   id: string;
@@ -34,18 +30,9 @@ type PageItem =
       links: BettingLink[];
     };
 
-type SiteData = {
-  profile: typeof defaultProfile;
-  items: PageItem[];
-};
-
 const storageKey = "apostas-legalizadas-links";
 const profileStorageKey = "apostas-legalizadas-profile";
-const siteDocRef = doc(db, "sites", "affapos");
-const allowedAdminEmails = (import.meta.env.VITE_ADMIN_EMAILS || "")
-  .split(",")
-  .map((email: string) => email.trim().toLowerCase())
-  .filter(Boolean);
+const adminSessionKey = "apostas-legalizadas-admin-session";
 
 const defaultProfile = {
   name: "Apostas Legalizadas BR",
@@ -113,7 +100,6 @@ function readStoredProfile() {
   try {
     const raw = localStorage.getItem(profileStorageKey);
     if (!raw) return defaultProfile;
-
     return { ...defaultProfile, ...JSON.parse(raw) };
   } catch {
     return defaultProfile;
@@ -158,18 +144,10 @@ function readStoredItems() {
   try {
     const raw = localStorage.getItem(storageKey);
     if (!raw) return defaultItems;
-
     return normalizeStoredItems(JSON.parse(raw));
   } catch {
     return defaultItems;
   }
-}
-
-function readLocalSiteData(): SiteData {
-  return {
-    profile: readStoredProfile(),
-    items: readStoredItems(),
-  };
 }
 
 function getSiteIconUrl(url: string) {
@@ -225,9 +203,7 @@ async function renderPdfFirstPage(file: File) {
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
 
-  if (!context) {
-    throw new Error("Nao foi possivel preparar a imagem do PDF.");
-  }
+  if (!context) throw new Error("Nao foi possivel preparar a imagem do PDF.");
 
   canvas.width = viewport.width;
   canvas.height = viewport.height;
@@ -240,51 +216,22 @@ export default function App() {
   const [items, setItems] = useState<PageItem[]>(readStoredItems);
   const [openGroups, setOpenGroups] = useState<string[]>([]);
   const [isEditing, setIsEditing] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem(adminSessionKey) === "true");
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
   const [adminError, setAdminError] = useState("");
   const [fileError, setFileError] = useState("");
-  const [isLoadingSite, setIsLoadingSite] = useState(true);
   const [savedMessage, setSavedMessage] = useState("");
   const isAdminRoute = new URLSearchParams(window.location.search).get("admin") === "1";
-  const isAdmin = Boolean(
-    user?.email && allowedAdminEmails.length > 0 && allowedAdminEmails.includes(user.email.toLowerCase()),
-  );
   const profileImageUrl = getProfileImageUrl(profile.photoUrl);
 
-  useEffect(() => onAuthStateChanged(auth, setUser), []);
+  useEffect(() => {
+    localStorage.setItem(profileStorageKey, JSON.stringify(profile));
+  }, [profile]);
 
   useEffect(() => {
-    let isMounted = true;
-
-    async function loadSiteData() {
-      try {
-        const snapshot = await getDoc(siteDocRef);
-        if (!isMounted) return;
-
-        if (snapshot.exists()) {
-          const data = snapshot.data() as Partial<SiteData>;
-          setProfile({ ...defaultProfile, ...(data.profile || {}) });
-          setItems(normalizeStoredItems(data.items));
-        } else {
-          const localData = readLocalSiteData();
-          setProfile(localData.profile);
-          setItems(localData.items);
-        }
-      } catch {
-        const localData = readLocalSiteData();
-        setProfile(localData.profile);
-        setItems(localData.items);
-      } finally {
-        if (isMounted) setIsLoadingSite(false);
-      }
-    }
-
-    void loadSiteData();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    localStorage.setItem(storageKey, JSON.stringify(items));
+  }, [items]);
 
   const updateLink = (id: string, field: keyof BettingLink, value: string) => {
     setItems((current) =>
@@ -351,45 +298,40 @@ export default function App() {
     setOpenGroups((current) => (current.includes(id) ? current.filter((groupId) => groupId !== id) : [...current, id]));
   };
 
-  const saveLinks = async () => {
+  const saveLinks = () => {
     localStorage.setItem(profileStorageKey, JSON.stringify(profile));
     localStorage.setItem(storageKey, JSON.stringify(items));
-
-    try {
-      await setDoc(siteDocRef, {
-        profile,
-        items,
-        updatedAt: new Date().toISOString(),
-      });
-      setSavedMessage("Pagina salva online.");
-      setIsEditing(false);
-      window.setTimeout(() => setSavedMessage(""), 2200);
-    } catch {
-      setSavedMessage("Nao consegui salvar online. Revise o Firebase/Firestore.");
-      window.setTimeout(() => setSavedMessage(""), 3500);
-    }
+    setSavedMessage("Pagina salva neste navegador.");
+    setIsEditing(false);
+    window.setTimeout(() => setSavedMessage(""), 2200);
   };
 
   const enterAdmin = async () => {
     try {
       setAdminError("");
-      const credential = await signInWithPopup(auth, googleProvider);
-      const email = credential.user.email?.toLowerCase();
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: adminEmail, password: adminPassword }),
+      });
 
-      if (!email || !allowedAdminEmails.includes(email)) {
-        await signOut(auth);
-        setAdminError("Este email nao esta autorizado como admin.");
+      if (!response.ok) {
+        setAdminError("Email ou senha incorretos.");
         return;
       }
 
+      localStorage.setItem(adminSessionKey, "true");
+      setIsAdmin(true);
       setIsEditing(true);
+      setAdminPassword("");
     } catch {
-      setAdminError("Nao foi possivel entrar com Google agora.");
+      setAdminError("Nao foi possivel entrar agora.");
     }
   };
 
-  const exitAdmin = async () => {
-    await signOut(auth);
+  const exitAdmin = () => {
+    localStorage.removeItem(adminSessionKey);
+    setIsAdmin(false);
     setIsEditing(false);
   };
 
@@ -448,15 +390,27 @@ export default function App() {
       {isAdminRoute && isEditing && !isAdmin ? (
         <section className="admin-login" aria-label="Login do administrador">
           <h2>Painel admin</h2>
-          <p>Entre com o Google autorizado para editar a pagina.</p>
+          <p>Entre com o email e senha configurados na Vercel.</p>
           <div className="admin-login-row">
-            <button className="icon-action primary" type="button" onClick={enterAdmin}>
-              Entrar com Google
+            <input
+              type="email"
+              value={adminEmail}
+              onChange={(event) => setAdminEmail(event.target.value)}
+              placeholder="Email do admin"
+            />
+            <input
+              type="password"
+              value={adminPassword}
+              onChange={(event) => setAdminPassword(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") void enterAdmin();
+              }}
+              placeholder="Senha"
+            />
+            <button className="icon-action primary" type="button" onClick={() => void enterAdmin()}>
+              Entrar
             </button>
           </div>
-          {allowedAdminEmails.length === 0 ? (
-            <p className="form-error">Configure VITE_ADMIN_EMAILS com seu email de admin para liberar o painel.</p>
-          ) : null}
           {adminError ? <p className="form-error">{adminError}</p> : null}
         </section>
       ) : null}
@@ -513,17 +467,14 @@ export default function App() {
               item.type === "link" ? (
                 <fieldset className="link-editor" key={item.id}>
                   <legend>Casa {index + 1}</legend>
-
                   <label>
                     Nome da casa
                     <input value={item.name} onChange={(event) => updateLink(item.id, "name", event.target.value)} />
                   </label>
-
                   <label>
                     Bonus
                     <input value={item.label} onChange={(event) => updateLink(item.id, "label", event.target.value)} />
                   </label>
-
                   <label>
                     Link da casa
                     <input
@@ -533,7 +484,6 @@ export default function App() {
                       placeholder="https://..."
                     />
                   </label>
-
                   <label>
                     Selo opcional
                     <input
@@ -542,7 +492,6 @@ export default function App() {
                       placeholder="Ex: Mais acessada"
                     />
                   </label>
-
                   <button className="danger-action" type="button" onClick={() => removeLink(item.id)}>
                     <Trash2 size={16} />
                     Remover esta casa
@@ -551,12 +500,10 @@ export default function App() {
               ) : (
                 <fieldset className="group-editor" key={item.id}>
                   <legend>Grupo {index + 1}</legend>
-
                   <label>
                     Nome do grupo
                     <input value={item.name} onChange={(event) => updateGroupName(item.id, event.target.value)} />
                   </label>
-
                   <div className="group-editor-list">
                     {item.links.map((link, linkIndex) => (
                       <div className="nested-link-editor" key={link.id}>
@@ -599,7 +546,6 @@ export default function App() {
                       </div>
                     ))}
                   </div>
-
                   <div className="group-actions">
                     <button className="icon-action" type="button" onClick={() => addLinkToGroup(item.id)}>
                       <Plus size={16} />
@@ -633,13 +579,10 @@ export default function App() {
 
       {savedMessage ? <p className="save-message">{savedMessage}</p> : null}
 
-      {isLoadingSite ? <p className="save-message">Carregando links...</p> : null}
-
       <section className="links-panel" aria-label="Links de casas de apostas">
         {items.map((item) => {
           if (item.type === "group") {
             const isOpen = openGroups.includes(item.id);
-
             return (
               <div className="group-card" key={item.id}>
                 <button className="bet-link group-toggle" type="button" onClick={() => toggleGroup(item.id)}>
@@ -655,29 +598,15 @@ export default function App() {
                   </span>
                   <ChevronDown className={isOpen ? "chevron open" : "chevron"} size={18} aria-hidden="true" />
                 </button>
-
                 {isOpen ? (
                   <div className="group-links">
                     {item.links.map((link) => {
                       const siteIconUrl = getSiteIconUrl(link.url);
-
                       return (
                         <a className="bet-link nested-bet-link" href={link.url} key={link.id} rel="noreferrer" target="_blank">
                           <span className="link-icon" aria-hidden="true">
-                            {siteIconUrl ? (
-                              <img
-                                alt=""
-                                src={siteIconUrl}
-                                onError={(event) => {
-                                  event.currentTarget.style.display = "none";
-                                }}
-                              />
-                            ) : null}
-                            {link.highlight ? (
-                              <Star className="fallback-icon" size={18} />
-                            ) : (
-                              <LinkIcon className="fallback-icon" size={18} />
-                            )}
+                            {siteIconUrl ? <img alt="" src={siteIconUrl} /> : null}
+                            {link.highlight ? <Star className="fallback-icon" size={18} /> : <LinkIcon className="fallback-icon" size={18} />}
                           </span>
                           <span className="link-copy">
                             <span className="link-topline">
@@ -697,19 +626,10 @@ export default function App() {
           }
 
           const siteIconUrl = getSiteIconUrl(item.url);
-
           return (
             <a className="bet-link" href={item.url} key={item.id} rel="noreferrer" target="_blank">
               <span className="link-icon" aria-hidden="true">
-                {siteIconUrl ? (
-                  <img
-                    alt=""
-                    src={siteIconUrl}
-                    onError={(event) => {
-                      event.currentTarget.style.display = "none";
-                    }}
-                  />
-                ) : null}
+                {siteIconUrl ? <img alt="" src={siteIconUrl} /> : null}
                 {item.highlight ? <Star className="fallback-icon" size={18} /> : <LinkIcon className="fallback-icon" size={18} />}
               </span>
               <span className="link-copy">
@@ -728,10 +648,7 @@ export default function App() {
       <section className="info-grid" aria-label="Informacoes importantes">
         <article>
           <h2>Antes de clicar</h2>
-          <p>
-            Confira sempre se a operadora esta regularizada no Brasil e leia os termos de bonus, saque e verificacao de
-            conta.
-          </p>
+          <p>Confira sempre se a operadora esta regularizada no Brasil e leia os termos de bonus, saque e verificacao de conta.</p>
         </article>
         <article>
           <h2>Parcerias</h2>
@@ -741,7 +658,6 @@ export default function App() {
 
       <footer>
         <p>Conteudo exclusivo para maiores de 18 anos. Jogue com moderacao.</p>
-        <p>Use o botao Editar links para trocar nomes e URLs direto na pagina.</p>
       </footer>
     </main>
   );
