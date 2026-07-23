@@ -77,6 +77,8 @@ async function redisCommand(command) {
 }
 
 export default async function handler(request, response) {
+  response.setHeader("Cache-Control", "no-store, max-age=0");
+
   try {
     if (request.method === "GET") {
       if (!hasRedisConfig()) {
