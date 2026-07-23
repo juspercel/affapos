@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { createAdminToken } from "./_auth";
 
 export default function handler(request: VercelRequest, response: VercelResponse) {
   if (request.method !== "POST") {
@@ -22,5 +23,5 @@ export default function handler(request: VercelRequest, response: VercelResponse
     return response.status(401).json({ ok: false });
   }
 
-  return response.status(200).json({ ok: true });
+  return response.status(200).json({ ok: true, token: createAdminToken() });
 }
