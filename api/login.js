@@ -17,6 +17,8 @@ function createAdminToken() {
 }
 
 export default function handler(request, response) {
+  response.setHeader("Cache-Control", "no-store, max-age=0");
+
   if (request.method !== "POST") {
     response.setHeader("Allow", "POST");
     return response.status(405).json({ ok: false });
