@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { onAuthStateChanged, signInWithPopup, signOut, type User } from "firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import {
   ChevronDown,
   Edit3,
@@ -14,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { auth, googleProvider } from "./lib/firebase";
+import { db } from "./lib/firebase";
 
 type BettingLink = {
   id: string;
@@ -32,8 +34,14 @@ type PageItem =
       links: BettingLink[];
     };
 
+type SiteData = {
+  profile: typeof defaultProfile;
+  items: PageItem[];
+};
+
 const storageKey = "apostas-legalizadas-links";
 const profileStorageKey = "apostas-legalizadas-profile";
+const siteDocRef = doc(db, "sites", "affapos");
 const allowedAdminEmails = (import.meta.env.VITE_ADMIN_EMAILS || "")
   .split(",")
   .map((email: string) => email.trim().toLowerCase())
@@ -157,6 +165,13 @@ function readStoredItems() {
   }
 }
 
+function readLocalSiteData(): SiteData {
+  return {
+    profile: readStoredProfile(),
+    items: readStoredItems(),
+  };
+}
+
 function getSiteIconUrl(url: string) {
   try {
     const parsedUrl = new URL(url);
@@ -228,6 +243,7 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [adminError, setAdminError] = useState("");
   const [fileError, setFileError] = useState("");
+  const [isLoadingSite, setIsLoadingSite] = useState(true);
   const [savedMessage, setSavedMessage] = useState("");
   const isAdminRoute = new URLSearchParams(window.location.search).get("admin") === "1";
   const isAdmin = Boolean(
@@ -238,12 +254,37 @@ export default function App() {
   useEffect(() => onAuthStateChanged(auth, setUser), []);
 
   useEffect(() => {
-    localStorage.setItem(profileStorageKey, JSON.stringify(profile));
-  }, [profile]);
+    let isMounted = true;
 
-  useEffect(() => {
-    localStorage.setItem(storageKey, JSON.stringify(items));
-  }, [items]);
+    async function loadSiteData() {
+      try {
+        const snapshot = await getDoc(siteDocRef);
+        if (!isMounted) return;
+
+        if (snapshot.exists()) {
+          const data = snapshot.data() as Partial<SiteData>;
+          setProfile({ ...defaultProfile, ...(data.profile || {}) });
+          setItems(normalizeStoredItems(data.items));
+        } else {
+          const localData = readLocalSiteData();
+          setProfile(localData.profile);
+          setItems(localData.items);
+        }
+      } catch {
+        const localData = readLocalSiteData();
+        setProfile(localData.profile);
+        setItems(localData.items);
+      } finally {
+        if (isMounted) setIsLoadingSite(false);
+      }
+    }
+
+    void loadSiteData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const updateLink = (id: string, field: keyof BettingLink, value: string) => {
     setItems((current) =>
@@ -310,12 +351,23 @@ export default function App() {
     setOpenGroups((current) => (current.includes(id) ? current.filter((groupId) => groupId !== id) : [...current, id]));
   };
 
-  const saveLinks = () => {
+  const saveLinks = async () => {
     localStorage.setItem(profileStorageKey, JSON.stringify(profile));
     localStorage.setItem(storageKey, JSON.stringify(items));
-    setSavedMessage("Pagina salva neste navegador.");
-    setIsEditing(false);
-    window.setTimeout(() => setSavedMessage(""), 2200);
+
+    try {
+      await setDoc(siteDocRef, {
+        profile,
+        items,
+        updatedAt: new Date().toISOString(),
+      });
+      setSavedMessage("Pagina salva online.");
+      setIsEditing(false);
+      window.setTimeout(() => setSavedMessage(""), 2200);
+    } catch {
+      setSavedMessage("Nao consegui salvar online. Revise o Firebase/Firestore.");
+      window.setTimeout(() => setSavedMessage(""), 3500);
+    }
   };
 
   const enterAdmin = async () => {
@@ -580,6 +632,8 @@ export default function App() {
       ) : null}
 
       {savedMessage ? <p className="save-message">{savedMessage}</p> : null}
+
+      {isLoadingSite ? <p className="save-message">Carregando links...</p> : null}
 
       <section className="links-panel" aria-label="Links de casas de apostas">
         {items.map((item) => {
