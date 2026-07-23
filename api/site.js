@@ -1,7 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 const siteKey = "affapos:site";
-const tokenTtlMs = 1000 * 60 * 60 * 12;
 
 function getSecret() {
   return process.env.ADMIN_PASSWORD || "development-secret";
@@ -21,16 +20,7 @@ function isValidAdminToken(header) {
   const signatureBuffer = Buffer.from(signature);
   const expectedBuffer = Buffer.from(expectedSignature);
 
-  if (signatureBuffer.length !== expectedBuffer.length || !timingSafeEqual(signatureBuffer, expectedBuffer)) {
-    return false;
-  }
-
-  try {
-    const payload = JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf8"));
-    return typeof payload.exp === "number" && payload.exp > Date.now();
-  } catch {
-    return false;
-  }
+  return signatureBuffer.length === expectedBuffer.length && timingSafeEqual(signatureBuffer, expectedBuffer);
 }
 
 function getRedisConfig() {
