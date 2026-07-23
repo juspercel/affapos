@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 
-const tokenTtlMs = 1000 * 60 * 60 * 12;
+const tokenTtlMs = 1000 * 60 * 60 * 24 * 30;
 
 function getSecret() {
   return process.env.ADMIN_PASSWORD || "development-secret";
