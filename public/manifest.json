@@ -1,0 +1,10 @@
+{
+  "name": "Apostas Legalizadas BR",
+  "short_name": "Apostas BR",
+  "description": "Pagina de links para casas de apostas legalizadas.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#070806",
+  "theme_color": "#37d67a",
+  "orientation": "portrait-primary"
+}
